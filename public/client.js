@@ -1,9 +1,20 @@
 (function () {
+
+  function setName(name) {
+    document.cookie = 'u='+name;
+    eles['user'].value = name;
+    socket.emit('lobby', {'type': LOBBY_USERNAME, 'name': name});
+  }
+  function getCookie(name) {
+    var value = "; " + document.cookie;
+    var parts = value.split("; " + name + "=");
+    if (parts.length == 2) return parts.pop().split(";").shift();
+  }
+  /* ==== WebRTC ==== */
   navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
   window.RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
   window.RTCIceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate || window.webkitRTCIceCandidate;
   window.RTCSessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription;
-  /* ==== WebRTC ==== */
   var WebRTCConnection = function() {
     configuration = {
       "iceServers": [
@@ -14,6 +25,7 @@
     };
     msg_count = 0;
     connections = [];
+    queue = [];
     is_server = false;
     signaler = null;
     // methods
@@ -26,14 +38,14 @@
     function openData(e) {
     }
     function closeData(e) {
-        // TODO: reconnect? Remove player?
+      // TODO: reconnect? Remove player?
       console.log('peer data closed');
     }
     function handleData(e) {
       console.dir(e);
       console.log(e.data);
       logMsg('peer: ' + e.data);
-      //queue.push(e.data);
+      queue.push(e.data);
     }
     function errorData(e) {
       console.log(e);
@@ -189,6 +201,7 @@
         {T: 'input', w: 'text', i: 'user', v: 'User'}
         , {T: 'button', i: 'update_name', t: 'Set Username', e: {
           'click': function() {
+            setName(eles['user'].value);
             socket.emit('lobby', {'type': LOBBY_USERNAME, 'name': eles['user'].value});
           }
         }}
@@ -226,8 +239,10 @@
             socket.emit('lobby', {'type': LOBBY_START});
           }
         }}
+        , {T: 'h2', t: 'Players'}
         , {T: 'div', i: 'players'}
         , {T: 'hr'}
+        , {T: 'h2', t: 'Chat'}
         , {T: 'div', i: 'log'}
       ]
     };
@@ -277,6 +292,7 @@
   function bind() {
     setupUi();
     socket.on("connect", function () {
+      setName(getCookie('u'));
     });
     socket.on("disconnect", function () {
       for (i in lobbies) {
@@ -292,8 +308,9 @@
     socket.on("lobby", function(js) {
       switch(js['type']) {
         case LOBBY_USERNAME:
-          console.log('got username');
-          eles['user'].value = js.name;
+          if (!getCookie('u')) {
+            setName(js.name);
+          }
           break;
         case LOBBY_ID:
           console.log('got id');
@@ -306,8 +323,8 @@
           destroyLobby(js.id);
           break;
         case LOBBY_JOINED:
-          lobby.players[js.id] = { name: js.name, element: document.createElement('div') };
-          lobby.players[js.id].element.innerText = lobby.players[js.id].name;
+          lobby.players[js.id] = { name: js.name, element: document.createElement('span') };
+          lobby.players[js.id].element.innerText = lobby.players[js.id].name+' | ';
           eles['players'].appendChild(lobby.players[js.id].element);
           logMsg(lobby.players[js.id].name+' has joined');
           break;
