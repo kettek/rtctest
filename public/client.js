@@ -198,7 +198,7 @@
     var view = {
       i: 'view',
       c: [
-        {T: 'input', w: 'text', i: 'user', v: 'User'}
+        {T: 'input', w: 'text', i: 'user'}
         , {T: 'button', i: 'update_name', t: 'Set Username', e: {
           'click': function() {
             setName(eles['user'].value);
@@ -292,7 +292,7 @@
   function bind() {
     setupUi();
     socket.on("connect", function () {
-      setName(getCookie('u'));
+      if (getCookie('u')) setName(getCookie('u'));
     });
     socket.on("disconnect", function () {
       for (i in lobbies) {
